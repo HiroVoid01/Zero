@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZERO // Mobile & Desktop AI HUD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #020617;
+            color: #22d3ee;
+            font-family: 'Rajdhani', sans-serif;
+            overflow-x: hidden;
+        }
+        .font-hud { font-family: 'Orbitron', sans-serif; }
+        .hud-box {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.12), inset 0 0 12px rgba(34, 211, 238, 0.08);
+            backdrop-filter: blur(8px);
+        }
+        .core-active {
+            box-shadow: 0 0 45px rgba(34, 211, 238, 0.85), inset 0 0 25px rgba(34, 211, 238, 0.6);
+            border-color: #67e8f9 !important;
+            transform: scale(1.05);
+        }
+        .core-speaking {
+            box-shadow: 0 0 55px rgba(56, 189, 248, 0.95), inset 0 0 35px rgba(56, 189, 248, 0.85);
+            animation: pulse-speak 0.45s infinite alternate;
+        }
+        @keyframes pulse-speak {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes spin-reverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+        .ring-1 { animation: spin-slow 16s linear infinite; }
+        .ring-2 { animation: spin-reverse 10s linear infinite; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 md:p-6 select-none bg-[radial-gradient(circle_at_top,_#0f172a_0%,_#020617_80%)]">
+
+    <!-- Top Status Bar -->
+    <header class="flex justify-between items-center border-b border-cyan-500/30 pb-2.5">
+        <div class="flex items-center gap-2.5">
+            <div id="statusDot" class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]"></div>
+            <span class="font-hud text-base md:text-xl tracking-widest font-bold text-cyan-300">Z.E.R.O <span class="text-[10px] text-cyan-500">MOBILE HUD</span></span>
+        </div>
+        <div id="clock" class="font-hud text-cyan-400 tracking-wider text-xs md:text-sm">00:00:00</div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-4 my-4">
+
+        <!-- Center Core (Tampil Paling Atas di HP) -->
+        <div class="lg:col-span-5 flex flex-col items-center justify-center py-2 order-1 lg:order-2">
+            <div class="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center cursor-pointer" onclick="toggleSystem()">
+                <div class="absolute inset-0 rounded-full border-2 border-dashed border-cyan-500/40 ring-1"></div>
+                <div class="absolute inset-3 rounded-full border border-cyan-400/30 border-t-cyan-300 border-b-cyan-300 ring-2"></div>
+                <div id="zeroCore" class="w-36 h-36 md:w-44 md:h-44 rounded-full border-2 border-cyan-500 bg-cyan-950/60 flex flex-col items-center justify-center transition-all duration-300 hud-box">
+                    <span class="font-hud text-xl md:text-3xl font-black tracking-widest text-cyan-200">ZERO</span>
+                    <span id="coreSubtext" class="text-[10px] md:text-xs tracking-widest text-cyan-400 mt-1 text-center px-2">TAP UNTUK AKTIFKAN</span>
+                </div>
+            </div>
+
+            <!-- Tombol Push-to-Talk Khusus HP (Jika malas teriak "Hai Zero") -->
+            <div class="flex gap-2 mt-4">
+                <button onclick="manualWake()" class="px-4 py-1.5 rounded-full border border-cyan-400/50 bg-cyan-900/40 active:bg-cyan-500/40 text-xs font-hud tracking-wider text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.2)]">
+                    🎙️ PANGGIL ZERO INSTAN
+                </button>
+            </div>
+
+            <!-- Live Transcript -->
+            <div class="mt-3 w-full max-w-md">
+                <p id="liveTranscript" class="text-xs md:text-sm text-center text-cyan-300 italic bg-slate-900/80 border border-cyan-500/30 rounded-lg py-2 px-3">
+                    Tap lingkaran ZERO di atas untuk menyalakan mikrofon HP.
+                </p>
+            </div>
+        </div>
+
+        <!-- Panel Kiri: Virtual File Explorer (Bisa Buat/Buka Folder di HP!) -->
+        <div class="lg:col-span-4 flex flex-col gap-3 order-2 lg:order-1">
+            <div class="hud-box p-3.5 rounded-xl flex-1 flex flex-col">
+                <div class="flex justify-between items-center border-b border-cyan-500/30 pb-2 mb-2.5">
+                    <div class="flex items-center gap-1.5">
+                        <span>📁</span>
+                        <h2 class="font-hud text-xs tracking-wider text-cyan-300">DIREKTORI ZERO</h2>
+                    </div>
+                    <span id="currentPath" class="text-[11px] font-mono text-cyan-500 bg-black/40 px-2 py-0.5 rounded">root/</span>
+                </div>
+
+                <!-- Grid Folder -->
+                <div id="folderGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-2.5 my-auto max-h-44 overflow-y-auto p-1">
+                    <!-- Folder items rendered via JS -->
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-cyan-500/20 flex justify-between items-center text-[11px] text-cyan-500">
+                    <span>Ucapkan: <strong>"Hai Zero, buat folder [Nama]"</strong></span>
+                    <button onclick="resetFolders()" class="text-red-400 hover:underline">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Kanan: Log & Input Ketik -->
+        <div class="lg:col-span-3 flex flex-col gap-3 order-3">
+            <div class="hud-box p-3.5 rounded-xl flex flex-col h-48 lg:h-64">
+                <div class="flex justify-between items-center border-b border-cyan-500/30 pb-1.5 mb-2">
+                    <h2 class="font-hud text-xs tracking-wider text-cyan-300">LOG SISTEM</h2>
+                    <span id="wakeBadge" class="text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">Standby</span>
+                </div>
+                <div id="logContainer" class="flex-1 overflow-y-auto space-y-1.5 text-xs font-mono pr-1"></div>
+            </div>
+
+            <!-- Input Manual -->
+            <form onsubmit="handleManualInput(event)" class="hud-box p-2 rounded-xl flex gap-2">
+                <input type="text" id="manualInput" placeholder="Ketik perintah ke Zero..." class="flex-1 bg-black/60 border border-cyan-500/40 rounded-lg px-3 py-1.5 text-xs md:text-sm text-cyan-100 focus:outline-none focus:border-cyan-400">
+                <button type="submit" class="px-3 py-1.5 bg-cyan-600/40 active:bg-cyan-500/60 border border-cyan-400 rounded-lg text-xs font-hud text-cyan-200">KIRIM</button>
+            </form>
+        </div>
+
+    </main>
+
+    <!-- Panduan Singkat Bawah -->
+    <footer class="border-t border-cyan-500/20 pt-2 text-center text-[11px] text-cyan-600">
+        Coba ucapkan: <span class="text-cyan-400">"Hai Zero, buat folder Desain"</span> • <span class="text-cyan-400">"Hai Zero, buka folder Desain"</span> • <span class="text-cyan-400">"Hai Zero, cari ide web di Google"</span>
+    </footer>
+
+    <script>
+        let isSystemActive = false;
+        let isAwake = false;
+        let awakeTimeout = null;
+        let recognition = null;
+
+        // Data Folder Virtual (Tersimpan di LocalStorage HP)
+        let folders = JSON.parse(localStorage.getItem('zero_folders') || '["Proyek Veltrix", "Tugas Sekolah", "Arsip Desain"]');
+        let activeFolder = null;
+
+        const coreEl = document.getElementById('zeroCore');
+        const coreSubtext = document.getElementById('coreSubtext');
+        const statusDot = document.getElementById('statusDot');
+        const wakeBadge = document.getElementById('wakeBadge');
+        const liveTranscript = document.getElementById('liveTranscript');
+        const logContainer = document.getElementById('logContainer');
+        const folderGrid = document.getElementById('folderGrid');
+        const currentPath = document.getElementById('currentPath');
+
+        // Jam Digital
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('id-ID', { hour12: false });
+        }, 1000);
+
+        // Render Folder di Layar HP
+        function renderFolders() {
+            localStorage.setItem('zero_folders', JSON.stringify(folders));
+            folderGrid.innerHTML = '';
+
+            if (activeFolder) {
+                currentPath.innerText = `root/${activeFolder}/`;
+                folderGrid.innerHTML = `
+                    <div onclick="closeFolder()" class="col-span-full flex items-center justify-between bg-cyan-950/50 border border-cyan-400/40 p-2.5 rounded-lg cursor-pointer">
+                        <span class="text-xs text-cyan-200">📂 Sedang di dalam folder: <strong>${activeFolder}</strong></span>
+                        <span class="text-xs bg-cyan-500/30 px-2 py-0.5 rounded text-cyan-200">⬅ Kembali</span>
+                    </div>
+                `;
+                return;
+            }
+
+            currentPath.innerText = 'root/';
+            folders.forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'flex flex-col items-center justify-center p-2 rounded-lg border border-cyan-500/20 bg-slate-900/60 active:bg-cyan-900/50 cursor-pointer transition text-center';
+                div.onclick = () => openFolder(name);
+                div.innerHTML = `
+                    <span class="text-2xl mb-1">📁</span>
+                    <span class="text-[11px] font-semibold text-cyan-200 line-clamp-1 break-all">${name}</span>
+                `;
+                folderGrid.appendChild(div);
+            });
+        }
+
+        function createVirtualFolder(name) {
+            activeFolder = null;
+            if (!folders.includes(name)) {
+                folders.push(name);
+                renderFolders();
+                speak(`Folder ${name} berhasil dibuat dan disimpan.`);
+            } else {
+                speak(`Folder dengan nama ${name} sudah ada.`);
+            }
+        }
+
+        function openFolder(name) {
+            const found = folders.find(f => f.toLowerCase() === name.toLowerCase());
+            if (found) {
+                activeFolder = found;
+                renderFolders();
+                speak(`Membuka folder ${found}.`);
+            } else {
+                speak(`Maaf, folder ${name} tidak ditemukan. Ingin saya buatkan?`);
+            }
+        }
+
+        function closeFolder() {
+            activeFolder = null;
+            renderFolders();
+            speak('Kembali ke direktori utama.');
+        }
+
+        function resetFolders() {
+            folders = ['Proyek Veltrix', 'Tugas Sekolah'];
+            activeFolder = null;
+            renderFolders();
+            addLog('SYS', 'Direktori direset.');
+        }
+
+        function addLog(sender, msg) {
+            const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const div = document.createElement('div');
+            const color = sender === 'ZERO' ? 'text-cyan-300' : (sender === 'USER' ? 'text-emerald-400' : 'text-amber-400');
+            div.innerHTML = `<span class="text-slate-500">[${time}]</span> <strong class="${color}">${sender}:</strong> <span class="text-slate-200">${msg}</span>`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function speak(text) {
+            addLog('ZERO', text);
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'id-ID';
+            u.rate = 1.05;
+            u.onstart = () => coreEl.classList.add('core-speaking');
+            u.onend = () => coreEl.classList.remove('core-speaking');
+            window.speechSynthesis.speak(u);
+        }
+
+        function setAwakeState(state) {
+            isAwake = state;
+            clearTimeout(awakeTimeout);
+            if (state) {
+                coreEl.classList.add('core-active');
+                wakeBadge.innerText = 'MENDENGARKAN';
+                wakeBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400 animate-pulse';
+                coreSubtext.innerText = 'SILAKAN BICARA...';
+                awakeTimeout = setTimeout(() => setAwakeState(false), 12000);
+            } else {
+                coreEl.classList.remove('core-active');
+                wakeBadge.innerText = isSystemActive ? 'Menunggu "Hai Zero"' : 'Offline';
+                wakeBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/40';
+                coreSubtext.innerText = isSystemActive ? 'UCAPKAN "HAI ZERO"' : 'TAP UNTUK AKTIFKAN';
+            }
+        }
+
+        function manualWake() {
+            if (!isSystemActive) toggleSystem();
+            setAwakeState(true);
+            speak('Ya, silakan sebutkan perintah Anda.');
+        }
+
+        function processTranscript(rawText) {
+            const text = rawText.toLowerCase().trim();
+            liveTranscript.innerText = `"${rawText}"`;
+
+            const wakeWords = ['hai zero', 'halo zero', 'hey zero', 'hei zero', 'hai jero', 'zero'];
+            let commandPart = text;
+            let triggered = false;
+
+            for (const w of wakeWords) {
+                if (text.includes(w)) {
+                    triggered = true;
+                    commandPart = text.substring(text.indexOf(w) + w.length).trim();
+                    break;
+                }
+            }
+
+            if (triggered) {
+                setAwakeState(true);
+                if (!commandPart) {
+                    speak('Ya, saya aktif. Ada perintah?');
+                    return;
+                }
+            }
+
+            if (!isAwake && !triggered) return;
+
+            addLog('USER', rawText);
+            executeCommand(commandPart || text);
+        }
+
+        function executeCommand(cmd) {
+            // Buat Folder
+            if (cmd.includes('buat folder') || cmd.includes('buatkan folder') || cmd.includes('bikin folder')) {
+                let name = cmd.replace(/.*(buat folder|buatkan folder|bikin folder)/i, '').trim();
+                if (!name) name = 'Folder Baru';
+                // Kapitalisasi huruf awal
+                name = name.replace(/\b\w/g, l => l.toUpperCase());
+                createVirtualFolder(name);
+                setAwakeState(false);
+                return;
+            }
+
+            // Buka Folder
+            if (cmd.includes('buka folder')) {
+                let name = cmd.replace(/.*buka folder/i, '').trim();
+                openFolder(name);
+                setAwakeState(false);
+                return;
+            }
+
+            // Tutup / Kembali dari Folder
+            if (cmd.includes('tutup folder') || cmd.includes('kembali')) {
+                closeFolder();
+                setAwakeState(false);
+                return;
+            }
+
+            // Cari di YouTube
+            if (cmd.includes('youtube')) {
+                let q = cmd.replace(/.*(cari|buka|putar|di youtube|youtube)/gi, '').trim();
+                speak(q ? `Mencari ${q} di YouTube.` : 'Membuka YouTube.');
+                window.open(q ? `https://m.youtube.com/results?search_query=${encodeURIComponent(q)}` : 'https://m.youtube.com', '_blank');
+                setAwakeState(false);
+                return;
+            }
+
+            // Cari di Google
+            if (cmd.startsWith('cari ') || cmd.includes('google')) {
+                let q = cmd.replace(/(cari tahu|cari|di google|google)/gi, '').trim();
+                speak(`Mencari ${q} di Google.`);
+                window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+                setAwakeState(false);
+                return;
+            }
+
+            // Jam berapa
+            if (cmd.includes('jam berapa')) {
+                const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                speak(`Sekarang pukul ${jam}.`);
+                setAwakeState(false);
+                return;
+            }
+
+            speak(`Perintah "${cmd}" diterima. Ingin saya carikan di Google?`);
+            setAwakeState(false);
+        }
+
+        function initSpeech() {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                addLog('SYS', 'Gunakan browser Google Chrome di HP agar fitur suara berjalan.');
+                return null;
+            }
+            const rec = new SR();
+            rec.lang = 'id-ID';
+            rec.continuous = false; // Di HP lebih stabil false + auto-restart
+            rec.interimResults = false;
+
+            rec.onresult = (e) => {
+                const transcript = e.results[e.results.length - 1][0].transcript;
+                processTranscript(transcript);
+            };
+
+            rec.onend = () => {
+                if (isSystemActive) {
+                    setTimeout(() => { try { rec.start(); } catch (err) {} }, 250);
+                }
+            };
+            return rec;
+        }
+
+        function toggleSystem() {
+            if (!recognition) {
+                recognition = initSpeech();
+                if (!recognition) return;
+            }
+            isSystemActive = !isSystemActive;
+            if (isSystemActive) {
+                try { recognition.start(); } catch (e) {}
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]';
+                setAwakeState(false);
+                speak('Sistem Zero aktif di perangkat seluler Anda.');
+            } else {
+                recognition.stop();
+                setAwakeState(false);
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]';
+                coreSubtext.innerText = 'TAP UNTUK AKTIFKAN';
+                addLog('SYS', 'Sistem dinonaktifkan.');
+            }
+        }
+
+        function handleManualInput(e) {
+            e.preventDefault();
+            const input = document.getElementById('manualInput');
+            const val = input.value.trim();
+            if (!val) return;
+            setAwakeState(true);
+            addLog('USER', val);
+            executeCommand(val.toLowerCase());
+            input.value = '';
+        }
+
+        renderFolders();
+        addLog('SYS', 'ZERO Mobile siap. Tap lingkaran tengah atau gunakan kotak ketik di bawah.');
+    </script>
+</body>
+</html>
